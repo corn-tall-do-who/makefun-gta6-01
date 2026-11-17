@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PORT VERONA — Open-World Crime Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1410; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #game { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+  #hud { display: none; position: fixed; inset: 0; pointer-events: none; color: #fff; z-index: 5; }
+  .panel { background: rgba(12, 16, 22, 0.72); border-radius: 8px; padding: 8px 12px; }
+  #hud-top-left { position: absolute; top: 12px; left: 12px; min-width: 220px; }
+  #hud-money { font-size: 26px; font-weight: 800; color: #7ee787; text-shadow: 0 2px 4px rgba(0,0,0,.6); }
+  #hud-debt { font-size: 12px; color: #ffb3b3; margin-top: 2px; }
+  #hud-health-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  #hud-health-bar { flex: 1; height: 14px; background: rgba(0,0,0,.55); border-radius: 7px; overflow: hidden; border: 1px solid rgba(255,255,255,.25); }
+  #hud-health-fill { height: 100%; width: 100%; background: #2fae4e; transition: width .2s; }
+  #hud-health-text { font-size: 12px; font-weight: 700; }
+  #hud-ammo { font-size: 12px; color: #d8d8d8; margin-top: 6px; }
+  #hud-top-right { position: absolute; top: 12px; right: 12px; text-align: right; }
+  #hud-stars { font-size: 30px; letter-spacing: 4px; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+  #hud-timer { font-size: 22px; font-weight: 800; margin-top: 4px; display: none; }
+  #hud-top-center { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; max-width: 46vw; }
+  #hud-mission { font-size: 15px; font-weight: 800; color: #ffd24a; text-shadow: 0 2px 4px rgba(0,0,0,.7); }
+  #hud-objective { font-size: 13px; margin-top: 3px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #hud-message { position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: 700; color: #ffe27a; text-shadow: 0 2px 4px rgba(0,0,0,.8); transition: opacity .3s; text-align: center; }
+  #hud-district { position: absolute; bottom: 12px; left: 12px; font-size: 13px; font-weight: 700; color: #fff; opacity: .85; }
+  #hud-controls { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 11px; color: rgba(255,255,255,.75); text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #minimap { position: absolute; right: 12px; bottom: 12px; width: 190px; height: 142px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+  .screen { display: none; position: fixed; inset: 0; z-index: 10; align-items: center; justify-content: center; background: linear-gradient(160deg, rgba(20,10,8,.88), rgba(8,20,34,.88)); color: #fff; text-align: center; padding: 20px; }
+  .screen-inner { max-width: 640px; }
+  .game-title { font-size: 64px; font-weight: 900; letter-spacing: 6px; color: #ffd24a; text-shadow: 0 4px 0 #a33, 0 8px 24px rgba(0,0,0,.6); }
+  .game-sub { font-size: 18px; letter-spacing: 4px; color: #7ee787; margin-top: 2px; }
+  .story { font-size: 15px; line-height: 1.6; color: #eee; margin: 18px 0; }
+  .controls { font-size: 13px; line-height: 1.9; color: #ccc; background: rgba(255,255,255,.06); border-radius: 8px; padding: 12px 18px; margin: 0 auto 20px; display: inline-block; text-align: left; }
+  .btn { pointer-events: auto; display: inline-block; font-size: 17px; font-weight: 800; padding: 12px 34px; margin: 6px; border: none; border-radius: 8px; cursor: pointer; background: #ffd24a; color: #231303; }
+  .btn:hover { background: #ffe27a; }
+  .btn.secondary { background: #2e6fb0; color: #fff; }
+  .btn.secondary:hover { background: #3a83cc; }
+  h2 { font-size: 34px; margin-bottom: 10px; }
+  .screen p { font-size: 15px; line-height: 1.6; color: #ddd; margin-bottom: 14px; }
+  #ending-stats { color: #7ee787; font-weight: 700; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="hud-top-left" class="panel">
+    <div id="hud-money">$1,500</div>
+    <div id="hud-debt">Debt to Sal: $50,000</div>
+    <div id="hud-health-row">
+      <div id="hud-health-bar"><div id="hud-health-fill"></div></div>
+      <span id="hud-health-text">100 HP</span>
+    </div>
+    <div id="hud-ammo">Ammo: 12</div>
+  </div>
+  <div id="hud-top-right">
+    <div id="hud-stars">☆☆☆☆☆</div>
+    <div id="hud-timer"></div>
+  </div>
+  <div id="hud-top-center">
+    <div id="hud-mission"></div>
+    <div id="hud-objective"></div>
+  </div>
+  <div id="hud-message"></div>
+  <div id="hud-district" class="panel">Downtown</div>
+  <div id="hud-controls">WASD move/drive &nbsp;•&nbsp; Shift run &nbsp;•&nbsp; E enter/exit car &nbsp;•&nbsp; Click shoot &nbsp;•&nbsp; F punch &nbsp;•&nbsp; Esc pause</div>
+  <canvas id="minimap" width="190" height="142"></canvas>
+</div>
+
+<div id="screen-title" class="screen" style="display:flex">
+  <div class="screen-inner">
+    <div class="game-title">PORT VERONA</div>
+    <div class="game-sub">AN OPEN-WORLD CRIME GAME</div>
+    <p class="story">Vic Marino just walked out of prison — and straight into a $50,000 debt to fixer Salvatore "Sal" Kessler. Steal cars, dodge the Verona PD, pull jobs across the city, and pay Sal back before the debt buries you.</p>
+    <div class="controls">
+      <b>On foot:</b> WASD / arrows to move, Shift to run, E to enter a car, Click to shoot, F to punch<br>
+      <b>Driving:</b> W accelerate, S brake/reverse, A/D steer, E to get out<br>
+      <b>Other:</b> Esc / P pause &nbsp;•&nbsp; Grab green crosses for health, $ for cash, yellow boxes for ammo
+    </div>
+    <br>
+    <button class="btn" id="btn-start">Start</button>
+    <button class="btn secondary" id="btn-continue" style="display:none">Continue</button>
+  </div>
+</div>
+
+<div id="screen-pause" class="screen">
+  <div class="screen-inner">
+    <h2>Paused</h2>
+    <p>Port Verona waits for no one, Vic. Well — right now it does.</p>
+    <button class="btn" id="btn-resume">Resume</button>
+    <button class="btn secondary" id="btn-restart">Quit to Title</button>
+  </div>
+</div>
+
+<div id="screen-busted" class="screen">
+  <div class="screen-inner">
+    <h2>BUSTED</h2>
+    <p id="busted-text">You got busted!</p>
+    <button class="btn" id="btn-busted">Get Up</button>
+  </div>
+</div>
+
+<div id="screen-ending" class="screen">
+  <div class="screen-inner">
+    <h2 style="color:#ffd24a">DEBT PAID. FREE MAN.</h2>
+    <p>Vic slides the last of the $50,000 across Sal's desk. Sal counts it, nods once, and slides a key back — a little house in Little Verona, a clean slate, and the whole city ahead of him.</p>
+    <p id="ending-stats"></p>
+    <p>Thanks for playing PORT VERONA.</p>
+    <button class="btn" id="btn-again">Play Again</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
